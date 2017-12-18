@@ -3,13 +3,16 @@ package com.example.android.memorableplaces;
 import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.icu.text.Normalizer2;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
+import android.support.annotation.MainThread;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
@@ -29,9 +32,11 @@ import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMapLongClickListener {
 
@@ -126,7 +131,11 @@ if(intent.getIntExtra(("placeNumber"),0)==0)
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, locationListener);
             Location lastKnownLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            if(lastKnownLocation !=null){
+
+            }
             centerMapOnLocation(lastKnownLocation,"Your Location");
+
 
         }
         else
@@ -139,11 +148,13 @@ if(intent.getIntExtra(("placeNumber"),0)==0)
     mMap.clear();
 
     Location userLocation = new Location(LocationManager.GPS_PROVIDER);
-    userLocation.setLatitude(MainActivity.locations.get(intent.getIntExtra(("placeNumber"),0)).latitude);
-    userLocation.setLongitude(MainActivity.locations.get(intent.getIntExtra(("placeNumber"),0)).longitude);
+    if(userLocation!=null){
+        userLocation.setLatitude(MainActivity.locations.get(intent.getIntExtra(("placeNumber"),0)).latitude);
+        userLocation.setLongitude(MainActivity.locations.get(intent.getIntExtra(("placeNumber"),0)).longitude);
+        centerMapOnLocation(userLocation,MainActivity.places.get(intent.getIntExtra(("placeNumber"),0)));
+        // mMap.addMarker(new MarkerOptions().position(MainActivity.locations.get(intent.getIntExtra(("placeNumber"),0))).title(MainActivity.places.get(intent.getIntExtra(("placeNumber"),0))));
+    }
 
-    centerMapOnLocation(userLocation,MainActivity.places.get(intent.getIntExtra(("placeNumber"),0)));
-   // mMap.addMarker(new MarkerOptions().position(MainActivity.locations.get(intent.getIntExtra(("placeNumber"),0))).title(MainActivity.places.get(intent.getIntExtra(("placeNumber"),0))));
 }
 
 
@@ -183,7 +194,30 @@ if(intent.getIntExtra(("placeNumber"),0)==0)
         Toast.makeText(getApplicationContext(),"Location Saved!",Toast.LENGTH_SHORT).show();
         MainActivity.places.add(address);
         MainActivity.locations.add(latLng);
+
+
+        SharedPreferences sharedPreferences= this.getSharedPreferences("com.example.android.memorableplaces", MODE_PRIVATE);
+
+        ArrayList<String> latitude = new ArrayList<>();
+        ArrayList<String> longitude= new ArrayList<>();
+
+        for(LatLng coordinates :MainActivity.locations){
+            latitude.add(Double.toString(coordinates.latitude));
+            longitude.add(Double.toString(coordinates.longitude));
+        }
+        try {
+            sharedPreferences.edit().putString("places", ObjectSerializer.serialize(MainActivity.places)).apply();
+            sharedPreferences.edit().putString("latitude", ObjectSerializer.serialize(latitude)).apply();
+            sharedPreferences.edit().putString("longitude", ObjectSerializer.serialize(longitude)).apply();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         MainActivity.listAdapter.notifyDataSetChanged();
+
+    MainActivity.listView.setAdapter(MainActivity.listAdapter);
+
 
     }
 }
